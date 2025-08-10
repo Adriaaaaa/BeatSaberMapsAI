@@ -11,7 +11,7 @@ def main():
 
     # Menu
     while True:
-        print("\nWhat do you want to do now ? :\n")
+        print("\nWhat do you want to do ? :\n")
         print("1.Analyse all maps\n")
         print("2.Visualize a map\n")
         choice = input("Enter your choice (1/2): ").strip()
