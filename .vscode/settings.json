@@ -1,0 +1,6 @@
+{
+    "python.defaultInterpreterPath": ".venv\\\\Scrips\\\\python.exe",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true
+}

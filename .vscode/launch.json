@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Lancer BeatSaberMapsAI.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/BeatSaberMapsAI.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONNUNBUFFERED": "1"
+            }
+        }
+    ]
+}
