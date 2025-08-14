@@ -2,15 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Lancer BeatSaberMapsAI.py",
+            "name": "Python: Lancer BeatSaberMapsAI.py avec terminal interactif",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/BeatSaberMapsAI.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONNUNBUFFERED": "1"
-            }
+                "PYTHONNUNBUFFERED": "1",
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "preLaunchTask": "Preparer le terminal",
+            "internalConsoleOptions": "neverOpen"
         }
     ]
 }

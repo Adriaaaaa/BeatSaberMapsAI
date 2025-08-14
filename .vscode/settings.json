@@ -2,5 +2,7 @@
     "python.defaultInterpreterPath": ".venv\\\\Scrips\\\\python.exe",
     "python.analysis.typeCheckingMode": "basic",
     "python.formatting.provider": "black",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "debug.openDebug": "neverOpen",
+    "debug.console.focusOnReveal": false,
 }

@@ -1,8 +1,10 @@
 import os
-from analysis import BeatSaberMapAnalyzer
+
+from analysis.parser import BSMapParser
+from analysis.profiler import BSMapProfiler
 from generation import generator
 
-MAPS_DIR = "Favorites"
+MAPS_DIR = "maps"
 
 
 def main():
@@ -21,18 +23,26 @@ def main():
             for map_folder in os.listdir(MAPS_DIR):
                 map_path = os.path.join(MAPS_DIR, map_folder)
                 if os.path.isdir(map_path):
-                    analyseur = BeatSaberMapAnalyzer(map_path)
-                    analyseur.load_data()
-                    print(f"Stats for {map_folder}: {analyseur.analyze_maps()}\n")
+                    parser = BSMapParser(map_path)
+                    parser.load_data()
+                    m = parser.build_map_from_file()
+                    profiler = BSMapProfiler(m)
+                    profiler.compute_stats()
+                    print(f"Map {m.name} analyzed successfully.\n")
+
             break
         elif choice == "2":
             print("Visualizing a map is not implemented yet.\n")
             for map_folder in os.listdir(MAPS_DIR):
                 map_path = os.path.join(MAPS_DIR, map_folder)
                 if os.path.isdir(map_path):
-                    analyseur = BeatSaberMapAnalyzer(map_path)
-                    analyseur.load_data()
-                    analyseur.visualize_map()  # Assuming visualize_map is implemented
+                    parser = BSMapParser(map_path)
+                    parser.load_data()
+                    m = parser.build_map_from_file()
+                    profiler = BSMapProfiler(m)
+                    profiler.compute_visualization_data()
+                    profiler.visualize()
+                    print(f"Map {m.name} visualized successfully.\n")
                     break
             continue
         else:

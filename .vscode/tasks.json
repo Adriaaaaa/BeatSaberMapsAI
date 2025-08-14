@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Preparer le terminal",
+            "type": "shell",
+            "command": "echo 'Go!'",
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run BeatSaberMapsAI",
+            "type": "shell",
+            "command": "python ${workspaceFolder}/BeatSaberMapsAI.py",
+            "options": {
+                "env": {
+                    "PYTHONNUNBUFFERED": "1",
+                    "PYTHONPATH": "${workspaceFolder}/src"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
