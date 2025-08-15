@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 GRID_COLS = 4
 GRID_ROWS = 3
@@ -38,9 +38,9 @@ class Obstacle:
         if not (self.time >= 0):
             raise ValueError("time should be positive")
         if not (self.duration >= 0):
-            raise ValueError("duration should be positive")
-        if not (0 <= self.width <= 4):
-            raise ValueError("width should be in [0,4]")
+            Warning("duration should be positive, this map may be broken")
+        if self.width <= 0:
+            raise ValueError("width should be positive")
 
 
 @dataclass(frozen=True)
@@ -61,10 +61,11 @@ class Bomb:
 @dataclass(frozen=True)
 class BSMap:
     version: str
-    name: str  # name of the map
-    bpm: int  # beat per minute in this map
     duration: Optional[dict[str, float]]  # duration in seconds and beats
     notes: List[Note]
+    warnings: Dict[str, int]  # to store warnings
+    name: str = "no_name"  # name of the map
+    bpm: int = 120  # beat per minute in this map
     obstacles: Optional[List[Obstacle]] = None
     bombs: Optional[List[Bomb]] = None
 
@@ -85,7 +86,7 @@ class BSMap:
                     fvalue = float(value)
                 except (TypeError, ValueError):
                     raise ValueError("duration should be a float")
-                if fvalue <= 0:
+                if fvalue < 0:
                     raise ValueError("duration should be postive")
         for n in self.notes:
             n.validate()

@@ -20,6 +20,8 @@ from typing import Dict, Any, List, Optional
 class BSMapProfiler:
 
     def __init__(self, map: BSMap):
+        if map is None:
+            raise ValueError("Map cannot be None")
         self.map = map
 
     def compute_stats(self):
