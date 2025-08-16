@@ -2,6 +2,8 @@ import os
 
 from analysis.parser import BSMapParser
 from analysis.profiler import BSMapProfiler
+from audio.loader import AudioLoader
+from audio.profiler import AudioProfiler
 from generation import generator
 from typing import Dict, Any, List
 
@@ -12,12 +14,24 @@ def main():
     print("Welcome to Beat Saber Maps AI by Adria!\n")
     print("This program will analyze your Beat Saber maps and provide statistics.\n")
 
+    # explain first what the program does
+    print("This program will analyze Beat Saber maps in the 'maps' directory.\n")
+    print("It will parse the maps, compute statistics, and visualize them.\n")
+    print(
+        "Make sure you have the following directories and files in the 'maps' directory:"
+    )
+    print("- A folder for each map with the following files:")
+    print("  - info.dat: Contains map information")
+    print("  - ExpertPlusStandard.dat or ExpertPlus.dat: Contains map data")
+    print("The program will also analyze the audio files associated with the maps.\n")
+
     # Menu
     while True:
         print("\nWhat do you want to do ? :\n")
         print("1.Analyse all maps\n")
         print("2.Visualize a map\n")
-        choice = input("Enter your choice (1/2): ").strip()
+        print("3.Analyse all songs\n")
+        choice = input("Enter your choice (1, 2 or 3): ")
 
         if choice == "1":
             print("Analyzing all maps...\n")
@@ -89,8 +103,26 @@ def main():
                     print(f"Map {m.name} visualized successfully.\n")
                     break
             continue
+        elif choice == "3":
+            print("Analyzing all songs...\n")
+            audio_loader = AudioLoader(sample_rate=44100, mono=True)
+            audio_profiler = AudioProfiler(audio_loader.sample_rate)
+
+            # Load all maps and their audio files
+            for map_folder in os.listdir(MAPS_DIR):
+                map_path = os.path.join(MAPS_DIR, map_folder)
+                if os.path.isdir(map_path):
+                    audio_data, sr = audio_loader.load_audio(map_path)
+                    print(f"Loaded audio for map {map_folder} with sample rate {sr}.\n")
+                    if audio_data.size == 0:
+                        print(f"No audio data found for map {map_folder}, skipping.\n")
+                        continue
+                    audio_profiler.describe_audio(audio_data=audio_data)
+                    print(f"Audio for map {map_folder} analyzed successfully.\n")
+
+            break
         else:
-            print("Invalid choice, please enter 1 or 2.\n")
+            print("Invalid choice, please enter 1, 2 or 3.\n")
 
 
 if __name__ == "__main__":

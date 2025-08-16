@@ -422,3 +422,7 @@ maps/
 
 *.pyproj
 *.sln
+
+.venv/
+# Ignore Python cache files
+__pycache__/
