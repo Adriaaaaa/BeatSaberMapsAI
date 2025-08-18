@@ -426,3 +426,6 @@ maps/
 .venv/
 # Ignore Python cache files
 __pycache__/
+
+logs/
+.vscode/

@@ -1,4 +1,4 @@
-from .parser import BSMapParser
-from .profiler import BSMapProfiler
+from .audio.profiler import AudioProfiler
+from .maps.profiler import BSMapProfiler
 
-__all__ = ["BSMapParser", "BSMapProfiler"]
+__all__ = ["AudioProfiler", "BSMapProfiler"]

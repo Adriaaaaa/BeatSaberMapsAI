@@ -8,6 +8,8 @@ from .geometry import (
     dir_to_vector_3d,
 )
 
+from .audio_features import AudioFeatures
+
 __all__ = [
     "Note",
     "Obstacle",
@@ -19,4 +21,5 @@ __all__ = [
     "bsnormalize",
     "dir_to_vector_2d",
     "dir_to_vector_3d",
+    "AudioFeatures",
 ]

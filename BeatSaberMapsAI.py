@@ -1,29 +1,38 @@
 import os
+import sys
 
-from analysis.parser import BSMapParser
-from analysis.profiler import BSMapProfiler
-from audio.loader import AudioLoader
-from audio.profiler import AudioProfiler
+from infra.map_parser import BSMapParser
+from analysis.maps.profiler import BSMapProfiler
+
+from infra.audio_loader import AudioLoader
+from analysis.audio.profiler import AudioProfiler
+
 from generation import generator
 from typing import Dict, Any, List
 
+from infra.logger import LoggerManager
+
+# Configure the logger
+log = LoggerManager.get_logger(__name__)
 MAPS_DIR = "maps"
 
 
 def main():
-    print("Welcome to Beat Saber Maps AI by Adria!\n")
-    print("This program will analyze your Beat Saber maps and provide statistics.\n")
+    log.info("Welcome to Beat Saber Maps AI by Adria!\n")
+    log.info("This program will analyze your Beat Saber maps and provide statistics.\n")
 
     # explain first what the program does
-    print("This program will analyze Beat Saber maps in the 'maps' directory.\n")
-    print("It will parse the maps, compute statistics, and visualize them.\n")
-    print(
+    log.info("This program will analyze Beat Saber maps in the 'maps' directory.\n")
+    log.info("It will parse the maps, compute statistics, and visualize them.\n")
+    log.info(
         "Make sure you have the following directories and files in the 'maps' directory:"
     )
-    print("- A folder for each map with the following files:")
-    print("  - info.dat: Contains map information")
-    print("  - ExpertPlusStandard.dat or ExpertPlus.dat: Contains map data")
-    print("The program will also analyze the audio files associated with the maps.\n")
+    log.info("- A folder for each map with the following files:")
+    log.info("  - info.dat: Contains map information")
+    log.info("  - ExpertPlusStandard.dat or ExpertPlus.dat: Contains map data")
+    log.info(
+        "The program will also analyze the audio files associated with the maps.\n"
+    )
 
     # Menu
     while True:
@@ -104,7 +113,7 @@ def main():
                     break
             continue
         elif choice == "3":
-            print("Analyzing all songs...\n")
+            log.info("Analyzing all songs...\n")
             audio_loader = AudioLoader(sample_rate=44100, mono=True)
             audio_profiler = AudioProfiler(audio_loader.sample_rate)
 
@@ -112,17 +121,18 @@ def main():
             for map_folder in os.listdir(MAPS_DIR):
                 map_path = os.path.join(MAPS_DIR, map_folder)
                 if os.path.isdir(map_path):
-                    audio_data, sr = audio_loader.load_audio(map_path)
-                    print(f"Loaded audio for map {map_folder} with sample rate {sr}.\n")
+                    audio_data = audio_loader.load_audio(map_path)
+                    log.info(f"Loaded audio for map {map_folder} .\n")
                     if audio_data.size == 0:
-                        print(f"No audio data found for map {map_folder}, skipping.\n")
+                        log.warn(
+                            f"No audio data found for map {map_folder}, skipping.\n"
+                        )
                         continue
-                    audio_profiler.describe_audio(audio_data=audio_data)
-                    print(f"Audio for map {map_folder} analyzed successfully.\n")
-
+                    audio_loader.describe_audio(audio_data)
+                    log.info(f"Audio for map {map_folder} analyzed successfully.\n")
             break
         else:
-            print("Invalid choice, please enter 1, 2 or 3.\n")
+            log.error("Invalid choice, please enter 1, 2 or 3.\n")
 
 
 if __name__ == "__main__":

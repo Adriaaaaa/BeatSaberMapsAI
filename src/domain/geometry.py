@@ -1,6 +1,10 @@
 import math
 from typing import Optional, Tuple
 
+from infra.logger import LoggerManager
+
+log = LoggerManager.get_logger(__name__)
+
 DIRECTION_TO_VECTOR = {
     0: (0, 1),  # Up
     1: (0, -1),  # Bas
@@ -31,6 +35,7 @@ def dir_to_vector_2d(code: int) -> Optional[Tuple[float, float]]:
         return (0.0, 0.0)
 
     if code not in DIRECTION_TO_VECTOR:
+        log.error(f"Invalid direction code: {code}")
         raise ValueError(f"Invalid direction code: {code}")
 
     return DIRECTION_TO_VECTOR[code]
@@ -41,6 +46,7 @@ def dir_to_vector_3d(code: int) -> Optional[Tuple[float, float, float]]:
         return (0.0, 0.0, 0.0)
 
     if code not in DIRECTION_TO_VECTOR:
+        log.error(f"Invalid direction code: {code}")
         raise ValueError(f"Invalid direction code: {code}")
 
     x, y = DIRECTION_TO_VECTOR[code]
@@ -68,6 +74,7 @@ def bsnormalize(vector: Tuple[float, float, float]) -> Tuple[float, float, float
     n = math.sqrt(x * x + y * y + z * z)
 
     if n == 0:
+        log.error("Cannot normalize a null vector")
         raise ValueError("null vector")
 
     return (x / n, y / n, z / n)

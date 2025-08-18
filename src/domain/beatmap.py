@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 
+from infra.logger import LoggerManager
+
+log = LoggerManager.get_logger(__name__)
+
 GRID_COLS = 4
 GRID_ROWS = 3
 
@@ -16,14 +20,19 @@ class Note:
 
     def validate(self) -> None:
         if not (self.time >= 0):
+            log.error("time should be positive")
             raise ValueError("time should be positive")
         if not (0 <= self.col < GRID_COLS):
+            log.error("column index is off grid")
             raise ValueError("column index is off grid")
         if not (0 <= self.row < GRID_ROWS):
+            log.error("row index is off grid")
             raise ValueError("row index is off grid")
         if not self.saber in (0, 1):
+            log.error("saber should be 0 or 1")
             raise ValueError("saber should be 0 or 1")
         if not (0 <= self.dir <= 8):
+            log.error("direction should be in [0,8]")
             raise ValueError("direction is wrong")
 
 
@@ -36,10 +45,13 @@ class Obstacle:
 
     def validate(self) -> None:
         if not (self.time >= 0):
+            log.error("time should be positive")
             raise ValueError("time should be positive")
         if not (self.duration >= 0):
+            log.error("duration should be positive")
             Warning("duration should be positive, this map may be broken")
         if self.width <= 0:
+            log.error("width should be positive")
             raise ValueError("width should be positive")
 
 
@@ -51,10 +63,13 @@ class Bomb:
 
     def validate(self) -> None:
         if not (self.time >= 0):
+            log.error("time should be positive")
             raise ValueError("time should be positive")
         if not (0 <= self.col < GRID_COLS):
+            log.error("column index should be in [0,4[")
             raise ValueError("column index should be in [0,4[")
         if not (0 <= self.row < GRID_ROWS):
+            log.error("row index should be in [0,3[")
             raise ValueError("row should be in [0,3[")
 
 
@@ -72,12 +87,15 @@ class BSMap:
     def validate(self) -> None:
 
         if not (self.bpm >= 0):
+            log.error("bpm should be positive")
             raise ValueError("bpm should be positive")
         if self.duration != None:
             if not isinstance(self.duration, dict):
+                log.error("duration should be a dict[str->float]")
                 raise TypeError("duration should be a dict[str->float]")
             for k in self.duration.keys():
                 if k not in {"seconds", "minutes", "beats"}:
+                    log.error("keys of duration should be seconds, minutes or beats")
                     raise ValueError(
                         "keys of duration should be seconds, minutes or beats "
                     )
@@ -85,8 +103,10 @@ class BSMap:
                 try:
                     fvalue = float(value)
                 except (TypeError, ValueError):
+                    log.error("duration values should be float")
                     raise ValueError("duration should be a float")
                 if fvalue < 0:
+                    log.error("duration should be positive")
                     raise ValueError("duration should be postive")
         for n in self.notes:
             n.validate()

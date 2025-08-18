@@ -6,6 +6,10 @@ from typing import Dict, Any, List, Optional
 
 from dataclasses import dataclass
 
+from infra.logger import LoggerManager
+
+log = LoggerManager.get_logger(__name__)
+
 
 class BSMapParser:
 
@@ -21,7 +25,7 @@ class BSMapParser:
             "negative width obstacle": 0,
             "invalid cut direction": 0,
         }
-        print(f"Parsing map folder: {self.map_folder}")
+        log.info(f"Parsing map folder: {self.map_folder}")
 
     def load_data(self):
         # Ouverture du fichier info.dat et gestion des erreurs
@@ -35,7 +39,7 @@ class BSMapParser:
         self.expert_data = load_json_utf8(expert_path)
 
         if not self.info_data or not self.expert_data:
-            print(f"Failed to load data from {self.map_folder}.")
+            log.error(f"Failed to load data from {self.map_folder}.")
             self.warnings["load_error"] += 1
             return
 
@@ -51,6 +55,9 @@ class BSMapParser:
 
         if self.duration_sec <= 0:
             # conversion de beats en secondes pour approximer la duree si necessaire
+            log.warning(
+                f"Duration in seconds is zero or negative for map {self.name}, calculating from BPM."
+            )
             self.duration_sec = round(self.duration_beat * 60 / self.bpm, 2)
 
         self.duration_min = self.duration_sec / 60
@@ -88,7 +95,7 @@ class BSMapParser:
     def build_map_from_file(self) -> Optional[BSMap]:
 
         if not hasattr(self, "notes"):
-            print("No notes found in the map")
+            log.warning("No notes found in the map")
             self.warnings["no notes in map"] += 1
             return None
 
@@ -98,33 +105,33 @@ class BSMapParser:
 
         for n in self.notes:
             if n.get("_lineIndex") < 0 or n.get("_lineIndex") >= 4:
-                Warning("Note or bomb has invalid column, skipping")
+                log.warning("Note or bomb has invalid column, skipping")
                 self.warnings["invalid column index"] += 1
                 continue
             if n.get("_lineLayer") < 0 or n.get("_lineLayer") >= 3:
-                Warning("Note or bomb has invalid row, skipping")
+                log.warning("Note or bomb has invalid row, skipping")
                 self.warnings["invalid row index"] += 1
                 continue
 
             if n.get("_type") in {0, 1}:
                 if n.get("_cutDirection") < 0 or n.get("_cutDirection") > 8:
-                    Warning("Note has invalid cut direction, skipping")
+                    log.warning("Note has invalid cut direction, skipping")
                     self.warnings["invalid cut direction"] += 1
                     continue
                 notes.append(self.convert_note(n))
             if n.get("_type") == 2:
-                Warning("Type is unknown, skipping")
+                log.warning("Type is unknown, skipping")
                 self.warnings["unknown note type"] += 1
             if n.get("_type") == 3:
                 bombs.append(self.convert_bomb(n))
 
         for o in self.obstacles:
             if o.get("_width") == 0:
-                Warning("Obstacle width is zero, skipping")
+                log.warning("Obstacle width is zero, skipping")
                 self.warnings["zero width obstacle"] += 1
                 continue
             if o.get("_width") < 0:
-                Warning("Obstacle width is negative, skipping")
+                log.warning("Obstacle width is negative, skipping")
                 self.warnings["negative width obstacle"] += 1
                 continue
             obstacles.append(self.convert_obstacle(o))
@@ -152,11 +159,11 @@ class BSMapParser:
 def load_json_utf8(file_path: str) -> Optional[Dict[str, Any]]:
     """Load a JSON file with UTF-8 encoding."""
     if not os.path.exists(file_path):
-        print(f"File {file_path} does not exist.")
+        log.error(f"File {file_path} does not exist.")
         return None
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from {file_path}: {e}")
+        log.error(f"Error decoding JSON from {file_path}: {e}")
         return None
