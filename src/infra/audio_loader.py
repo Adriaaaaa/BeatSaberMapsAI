@@ -15,7 +15,7 @@ from infra.logger import LoggerManager
 
 log = LoggerManager.get_logger(__name__)
 
-VERSION = 2
+VERSION = 3
 AUDIO_LIB = "librosa"  # or "soundfile"
 
 

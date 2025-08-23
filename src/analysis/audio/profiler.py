@@ -18,4 +18,6 @@ class AudioProfiler:
             print("No audio data provided.")
             return
 
-        self.audio_features = AudioFeatures.from_signal(audio_data, self.sample_rate)
+        self.audio_features = AudioFeatures.from_signal(
+            audio_data, self.sample_rate, hop_length=512, n_fft=2048
+        )
