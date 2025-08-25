@@ -11,10 +11,14 @@ from generation import generator
 from typing import Dict, Any, List
 
 from infra.logger import LoggerManager
+from domain import AudioFeatures
+
+from analysis.audio.align_utils import align_audio_features
+from domain import TrackVector
+from infra.constants import *
 
 # Configure the logger
 log = LoggerManager.get_logger(__name__)
-MAPS_DIR = "maps"
 
 
 def main():
@@ -40,7 +44,11 @@ def main():
         print("1.Analyse all maps\n")
         print("2.Visualize a map\n")
         print("3.Analyse all songs\n")
-        choice = input("Enter your choice (1, 2 or 3): ")
+        print("4.Print all audio features\n")
+        print("5.Convert first song in audio feature then vector\n")
+        print("6.Convert all songs to audiofeatures and then to vector\n")
+        print("q.Quit\n")
+        choice = input("Enter your choice: ")
 
         if choice == "1":
             print("Analyzing all maps...\n")
@@ -114,8 +122,12 @@ def main():
             continue
         elif choice == "3":
             log.info("Analyzing all songs...\n")
-            audio_loader = AudioLoader(sample_rate=44100, mono=True)
-            audio_profiler = AudioProfiler(audio_loader.sample_rate)
+            audio_loader = AudioLoader(sample_rate=AUDIO_DEFAULT_SAMPLE_RATE, mono=True)
+            audio_profiler = AudioProfiler(
+                audio_loader.sample_rate,
+                hop_length=AUDIO_DEFAULT_HOP,
+                mono=audio_loader.mono,
+            )
 
             # Load all maps and their audio files
             for map_folder in os.listdir(MAPS_DIR):
@@ -128,11 +140,123 @@ def main():
                             f"No audio data found for map {map_folder}, skipping.\n"
                         )
                         continue
-                    audio_loader.describe_audio(audio_data)
-                    log.info(f"Audio for map {map_folder} analyzed successfully.\n")
+                    audio_profiler.extract_audio_features(
+                        audio_data, map_folder=map_path
+                    )
+                    log.info(
+                        f"Audio for map {map_folder} analyzed successfully and cached.\n"
+                    )
             break
+        elif choice == "4":
+            log.info("Print all audio features...\n")
+            audio_loader = AudioLoader(sample_rate=AUDIO_DEFAULT_SAMPLE_RATE, mono=True)
+            audio_profiler = AudioProfiler(
+                audio_loader.sample_rate,
+                hop_length=AUDIO_DEFAULT_HOP,
+                mono=audio_loader.mono,
+            )
+
+            # Load all maps and their audio files
+            for map_folder in os.listdir(MAPS_DIR):
+                map_path = os.path.join(MAPS_DIR, map_folder)
+                if os.path.isdir(map_path):
+                    audio_data = audio_loader.load_audio(map_path)
+                    log.info(f"Loaded audio for map {map_folder} .\n")
+                    if audio_data.size == 0:
+                        log.warn(
+                            f"No audio data found for map {map_folder}, skipping.\n"
+                        )
+                        continue
+                    features = audio_profiler.extract_audio_features(
+                        audio_data, map_folder=map_path
+                    )
+                    if features:
+                        log.info(features.summary_str())
+                    log.info(
+                        f"Audio for map {map_folder} analyzed successfully and cached.\n"
+                    )
+            break
+        elif choice == "5":
+            log.info("Convert first song in audio feature then vector\n")
+            audio_loader = AudioLoader(sample_rate=AUDIO_DEFAULT_SAMPLE_RATE, mono=True)
+            audio_profiler = AudioProfiler(
+                audio_loader.sample_rate,
+                hop_length=AUDIO_DEFAULT_HOP,
+                mono=audio_loader.mono,
+            )
+
+            # Load all maps and their audio files
+            for map_folder in os.listdir(MAPS_DIR):
+                map_path = os.path.join(MAPS_DIR, map_folder)
+                if os.path.isdir(map_path):
+                    audio_data = audio_loader.load_audio(map_path)
+                    log.info(f"Loaded audio for map {map_folder} .\n")
+                    if audio_data.size == 0:
+                        log.warn(
+                            f"No audio data found for map {map_folder}, skipping.\n"
+                        )
+                        continue
+                    features = audio_profiler.extract_audio_features(
+                        audio_data, map_folder=map_path
+                    )
+                    if features:
+                        log.info(features.summary_str())
+                        log.info(
+                            f"Audio for map {map_folder} analyzed successfully and cached.\n"
+                        )
+                        align_audio_features(features)
+                        log.info("Audio features aligned.\n")
+                        log.info(features.summary_str())
+                        vector = audio_profiler.convert_features_to_vector(
+                            track_id=map_folder, features=features, map_folder=map_path
+                        )
+                        if vector:
+                            log.info(
+                                f"Audio for map {map_folder} converted to vector successfully and cached.\n"
+                            )
+                            log.info(vector.summarize())
+                break
+        elif choice == "6":
+            log.info("Convert all songs to audiofeatures and then to vector\n")
+            audio_loader = AudioLoader(sample_rate=AUDIO_DEFAULT_SAMPLE_RATE, mono=True)
+            audio_profiler = AudioProfiler(
+                audio_loader.sample_rate,
+                hop_length=AUDIO_DEFAULT_HOP,
+                mono=audio_loader.mono,
+            )
+
+            # Load all maps and their audio files
+            for map_folder in os.listdir(MAPS_DIR):
+                map_path = os.path.join(MAPS_DIR, map_folder)
+                if os.path.isdir(map_path):
+                    audio_data = audio_loader.load_audio(map_path)
+                    log.info(f"Loaded audio for map {map_folder} .\n")
+                    if audio_data.size == 0:
+                        log.warn(
+                            f"No audio data found for map {map_folder}, skipping.\n"
+                        )
+                        continue
+                    features = audio_profiler.extract_audio_features(
+                        audio_data, map_folder=map_path
+                    )
+                    if features:
+                        log.info(
+                            f"Audio for map {map_folder} analyzed successfully and cached.\n"
+                        )
+                        align_audio_features(features)
+                        log.info("Audio features aligned.\n")
+                        vector = audio_profiler.convert_features_to_vector(
+                            track_id=map_folder, features=features, map_folder=map_path
+                        )
+                        if vector:
+                            log.info(
+                                f"Audio for map {map_folder} converted to vector successfully and cached.\n"
+                            )
+        elif choice.lower() == "q":
+            print("Quitting the program.\n")
+            sys.exit(0)
         else:
-            log.error("Invalid choice, please enter 1, 2 or 3.\n")
+            log.error("Invalid choice.\n")
 
 
 if __name__ == "__main__":

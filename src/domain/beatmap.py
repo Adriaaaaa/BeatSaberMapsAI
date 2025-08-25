@@ -2,11 +2,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Dict
 
 from infra.logger import LoggerManager
+from infra.constants import *
 
 log = LoggerManager.get_logger(__name__)
-
-GRID_COLS = 4
-GRID_ROWS = 3
 
 
 @dataclass(frozen=True)

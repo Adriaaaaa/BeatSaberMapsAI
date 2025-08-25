@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Optional
+from infra.constants import *
 
 
 class LoggerManager:
@@ -11,7 +12,7 @@ class LoggerManager:
     _log_file = ""
 
     @classmethod
-    def configure(cls, level: int = logging.INFO, log_dir: str = "logs") -> None:
+    def configure(cls, level: int = logging.INFO, log_dir: str = LOGS_DIR) -> None:
         # Configure the logger with the specified level and directory.
         if cls._configured:
             return

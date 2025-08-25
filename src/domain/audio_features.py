@@ -1,12 +1,13 @@
 from __future__ import annotations
 import numpy as np
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, Sequence
 
 import librosa
 
 from dataclasses import dataclass, asdict
 
 from infra.logger import LoggerManager
+from infra.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
@@ -165,13 +166,22 @@ class AudioFeatures:
     # rms of the harmonic component can give an idea of the loudness of the tonal content of the audio signal
     # tonal content in french is "contenu tonal", meaning that the sound has a pitch and is not just noise
     # tonal content is important in music because it provides the melody and harmony of a piece
-    rms_harmonic: Optional[np.ndarray] | None = None
+    rms_harmonic_values: Optional[np.ndarray] | None = None
 
     # percussive component of the audio signal
     # the percussive component represents the transient content of the audio signal
     # percussive sounds are those that do not have a clear pitch, such as drum hits, claps, or other rhythmic elements
     # transient means that the sound is short and sudden, with a rapid attack and decay
-    rms_percussive: Optional[np.ndarray] | None = None
+    rms_percussive_values: Optional[np.ndarray] | None = None
+
+    # mel-frequency cepstral coefficients (MFCCs) are a representation of the short-term power spectrum of an audio signal
+    # they are commonly used in speech and audio processing tasks such as speech recognition, speaker identification, and music genre classification
+    # MFCCs are calculated by applying a series of transformations to the audio signal, including a Fourier transform, a mel-scale filter bank, and a discrete cosine transform
+    # the resulting MFCCs can be represented as a set of coefficients that capture the spectral characteristics of the audio signal
+    # MFCCs are useful because they provide a compact representation of the spectral content of an audio signal, which can be used to analyze and compare different sounds
+    # typically, the first 13 MFCCs are used, as they capture the most important spectral features of the audio signal
+    # in simple words, MFCCs are a way to represent the timbral qualities of a sound
+    mfcc_values: Optional[np.ndarray] | None = None
 
     # times of the detected beats in seconds
     # beats are the regular pulses in music that provide the rhythmic structure of a piece
@@ -187,9 +197,9 @@ class AudioFeatures:
     def from_signal(
         cls,
         audio_data: np.ndarray,
-        sample_rate: int = 44100,
-        hop_length: int = 512,
-        n_fft: int = 2048,
+        sample_rate: int = AUDIO_DEFAULT_SAMPLE_RATE,
+        hop_length: int = AUDIO_DEFAULT_HOP,
+        n_fft: int = AUDIO_DEFAULT_NFFT,
     ):
         """
         Extract features from the audio data.
@@ -332,6 +342,12 @@ class AudioFeatures:
             onset_frames, sr=sample_rate, hop_length=hop_length
         )
 
+        mfcc_values = librosa.feature.mfcc(
+            y=audio_data,
+            sr=sample_rate,
+            n_mfcc=13,
+        ).astype(np.float32)
+
         return cls(
             sample_num=sample_num,
             sample_rate=sample_rate,
@@ -349,10 +365,11 @@ class AudioFeatures:
             bandwidth_values=bandwidth_norm,
             rollof_values=rollof_norm,
             chroma=chroma,
-            rms_harmonic=rms_harmonic_norm,
-            rms_percussive=rms_percussive_norm,
+            rms_harmonic_values=rms_harmonic_norm,
+            rms_percussive_values=rms_percussive_norm,
             beat_times_sec=beat_times,
             tempo=tempo,
+            mfcc_values=mfcc_values,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -373,7 +390,7 @@ class AudioFeatures:
         """
         d = dict(data)
         for k in (
-            "rms_times_sec",
+            "frames_times_sec",
             "rms_values",
             "onset_times_sec",
             "centroid_values",
@@ -382,9 +399,10 @@ class AudioFeatures:
             "bandwidth_values",
             "rollof_values",
             "chroma",
-            "rms_harmonic",
-            "rms_percussive",
+            "rms_harmonic_values",
+            "rms_percussive_values",
             "beat_times_sec",
+            "mfcc_values",
         ):
             if not isinstance(d[k], np.ndarray):
                 d[k] = np.asarray(d[k])
@@ -406,7 +424,24 @@ class AudioFeatures:
         hop_sec = self.frame_hop_seconds()
         return (1.0 / hop_sec) if hop_sec > 0 else 0.0
 
-    def feature_stats(self, feature_to_summarize: str):
+    def feature_stats_1d(self, feature_to_summarize: str):
+        if feature_to_summarize not in (
+            "rms_values",
+            "centroid_values",
+            "flux_values",
+            "bandwidth_values",
+            "rollof_values",
+            "rms_harmonic_values",
+            "rms_percussive_values",
+        ):
+            log.error(
+                f"feature_stats_1d: feature_to_summarize must be one of 'rms_values', 'centroid_values', 'flux_values', 'bandwidth_values', 'rollof_values', 'rms_harmonic_values', 'rms_percussive_values'"
+            )
+            log.error(f"feature_stats_1d: got {feature_to_summarize}")
+            raise ValueError(
+                f"feature_stats_1d: feature_to_summarize must be one of 'rms_values', 'centroid_values', 'flux_values', 'bandwidth_values', 'rollof_values', 'rms_harmonic_values', 'rms_percussive_values'"
+            )
+
         feature = getattr(self, feature_to_summarize)
         if feature is None:
             return {
@@ -417,36 +452,59 @@ class AudioFeatures:
                 "p10": 0,
                 "p50": 0,
                 "p90": 0,
+                "var": 0,
             }
 
-        if feature_to_summarize == "chroma":
-            # chroma is a 2D array (12, n_frames)
-            # we want to summarize all values
-            # we want a summary for all 12 chroma bins
-            summary = {}
-            for i in range(12):
-                bin_values = feature[i, :]
-                bin_values = np.asarray(bin_values)
-                summary[f"bin_{i}_min"] = float(bin_values.min())
-                summary[f"bin_{i}_max"] = float(bin_values.max())
-                summary[f"bin_{i}_mean"] = float(bin_values.mean())
-                summary[f"bin_{i}_std"] = float(np.std(bin_values, ddof=0))
-                summary[f"bin_{i}_p10"] = float(np.percentile(bin_values, 10))
-                summary[f"bin_{i}_p50"] = float(np.percentile(bin_values, 50))
-                summary[f"bin_{i}_p90"] = float(np.percentile(bin_values, 90))
-            return summary
+        feature = np.asarray(feature)
+        return {
+            "min": float(feature.min()),
+            "max": float(feature.max()),
+            "mean": float(feature.mean()),
+            "std": float(np.std(feature, ddof=0)),
+            "p10": float(np.percentile(feature, 10)),
+            "p50": float(np.percentile(feature, 50)),
+            "p90": float(np.percentile(feature, 90)),
+            "var": float(np.var(feature, ddof=0)),
+        }
 
-        else:
-            feature = np.asarray(feature)
-            return {
-                "min": float(feature.min()),
-                "max": float(feature.max()),
-                "mean": float(feature.mean()),
-                "std": float(np.std(feature, ddof=0)),
-                "p10": float(np.percentile(feature, 10)),
-                "p50": float(np.percentile(feature, 50)),
-                "p90": float(np.percentile(feature, 90)),
-            }
+    def feature_stats_2d(
+        self,
+        feature_to_summarize: str,
+        stats_to_compute: Sequence[str] = (
+            "mean",
+            "std",
+            "var",
+        ),
+        quantiles: Sequence[int] = (10, 50, 90),
+    ) -> Dict[str, np.ndarray]:
+        if feature_to_summarize not in ("chroma", "mfcc_values"):
+            raise ValueError(
+                f"feature_stats_2d: feature_to_summarize must be one of 'chroma', 'mfcc_values'"
+            )
+
+        feature = getattr(self, feature_to_summarize)
+        if feature is None:
+            return {}
+
+        summary = {}
+        for i in range(feature.shape[0]):
+            band = feature[i, :]
+            band_stats = {}
+            if "min" in stats_to_compute:
+                band_stats["min"] = float(band.min())
+            if "max" in stats_to_compute:
+                band_stats["max"] = float(band.max())
+            if "mean" in stats_to_compute:
+                band_stats["mean"] = float(band.mean())
+            if "std" in stats_to_compute:
+                band_stats["std"] = float(np.std(band, ddof=0))
+            if "var" in stats_to_compute:
+                band_stats["var"] = float(np.var(band, ddof=0))
+            for q in quantiles:
+                band_stats[f"p{q}"] = float(np.percentile(band, q))
+            summary[f"{feature_to_summarize}_band_{i}"] = band_stats
+
+        return summary
 
     def summary_str(self, max_onsets: int = 8) -> str:
         duration = self._fmt_time(self.duration_sec)
@@ -461,8 +519,9 @@ class AudioFeatures:
         bandwidth_values = np.asarray(self.bandwidth_values)
         rollof_values = np.asarray(self.rollof_values)
         chroma = np.asarray(self.chroma)
-        rms_harmonic = np.asarray(self.rms_harmonic)
-        rms_percussive = np.asarray(self.rms_percussive)
+        mftcc_values = np.asarray(self.mfcc_values)
+        rms_harmonic = np.asarray(self.rms_harmonic_values)
+        rms_percussive = np.asarray(self.rms_percussive_values)
         beat_times_sec = np.asarray(self.beat_times_sec)
 
         # number of points in each feature series
@@ -470,24 +529,32 @@ class AudioFeatures:
         onset_n = self.onset_times_sec.size
         centroid_n = len(centroid_values)
         flux_n = len(flux_values)
-        stft_n = stft_magnitudes.shape[1] if stft_magnitudes.ndim == 2 else 0
         bandwidth_n = len(bandwidth_values)
         rollof_n = len(rollof_values)
         chroma_n = chroma.shape[1] if chroma.ndim == 2 else 0
+        mfcc_n = mftcc_values.shape[1] if mftcc_values.ndim == 2 else 0
         rms_harmonic_n = len(rms_harmonic)
         rms_percussive_n = len(rms_percussive)
         beat_n = len(beat_times_sec)
 
         # stats for selected features
-        rms_stats = self.feature_stats("rms_values")
-        centroid_stats = self.feature_stats("centroid_values")
-        flux_stats = self.feature_stats("flux_values")
-        bandwidth_stats = self.feature_stats("bandwidth_values")
-        rollof_stats = self.feature_stats("rollof_values")
-        rms_harmonic_stats = self.feature_stats("rms_harmonic")
-        rms_percussive_stats = self.feature_stats("rms_percussive")
-        beat_stats = self.feature_stats("beat_times_sec")
-        chroma_stats = self.feature_stats("chroma")
+        rms_stats = self.feature_stats_1d("rms_values")
+        centroid_stats = self.feature_stats_1d("centroid_values")
+        flux_stats = self.feature_stats_1d("flux_values")
+        bandwidth_stats = self.feature_stats_1d("bandwidth_values")
+        rollof_stats = self.feature_stats_1d("rollof_values")
+        rms_harmonic_stats = self.feature_stats_1d("rms_harmonic_values")
+        rms_percussive_stats = self.feature_stats_1d("rms_percussive_values")
+        chroma_stats = self.feature_stats_2d(
+            "chroma",
+            stats_to_compute=("min", "max", "mean", "std", "var"),
+            quantiles=(10, 50, 90),
+        )
+        mfcc_stats = self.feature_stats_2d(
+            "mfcc_values",
+            stats_to_compute=("min", "max", "mean", "std", "var"),
+            quantiles=(10, 50, 90),
+        )
 
         if onset_n > 0:
             sample = ",".join(
@@ -495,41 +562,87 @@ class AudioFeatures:
             )
         else:
             sample = "_"
-        lines = [
-            "=== AudioFeatures ===",
-            f"Samples         : {self.sample_num}",
-            f"Sample rate      : {self.sample_rate}",
-            f"Durée            : {duration} ({self.duration_sec:.3f} s)",
-            f"Frame hop        : {self.hop_length} samples, {hop_s:.4f} sec, {fps:.1f} fps",
-            f"Frames (STFT)    : {stft_n}",
-            f"Amplitude  min/mean/max : {self.min_amplitude:.4f} /  {self.mean_amplitude:.4f} / {self.max_amplitude:.4f}",
-            f"RMS (normalisee) points : {rms_n} ",
-            f"RMS stats (0..1)    :             min = {rms_stats['min']:.3f} p10 = {rms_stats['p10']:.3f} p50 = {rms_stats['p50']:.3f} p90 = {rms_stats['p90']:.3f} max = {rms_stats['max']:.3f} mean = {rms_stats['mean']:.3f} std = {rms_stats['std']:.3f}",
-            f"Centroid (norm) points : {centroid_n}",
-            f"Centroid stats (0..1) :             min = {centroid_stats['min']:.3f} p10 = {centroid_stats['p10']:.3f} p50 = {centroid_stats['p50']:.3f} p90 = {centroid_stats['p90']:.3f} max = {centroid_stats['max']:.3f} mean = {centroid_stats['mean']:.3f} std = {centroid_stats['std']:.3f}",
-            f"Spectral flux (norm) points : {flux_n}",
-            f"Spectral flux stats (0..1) :             min = {flux_stats['min']:.3f} p10 = {flux_stats['p10']:.3f} p50 = {flux_stats['p50']:.3f} p90 = {flux_stats['p90']:.3f} max = {flux_stats['max']:.3f} mean = {flux_stats['mean']:.3f} std = {flux_stats['std']:.3f}",
-            f"Spectral bandwidth (norm) points : {bandwidth_n}",
-            f"Spectral bandwidth stats (0..1) :             min = {bandwidth_stats['min']:.3f} p10 = {bandwidth_stats['p10']:.3f} p50 = {bandwidth_stats['p50']:.3f} p90 = {bandwidth_stats['p90']:.3f} max = {bandwidth_stats['max']:.3f} mean = {bandwidth_stats['mean']:.3f} std = {bandwidth_stats['std']:.3f}",
-            f"Spectral rolloff (norm) points : {rollof_n}",
-            f"Spectral rolloff stats (0..1) :             min = {rollof_stats['min']:.3f} p10 = {rollof_stats['p10']:.3f} p50 = {rollof_stats['p50']:.3f} p90 = {rollof_stats['p90']:.3f} max = {rollof_stats['max']:.3f} mean = {rollof_stats['mean']:.3f} std = {rollof_stats['std']:.3f}",
-            f"Chroma points    : {chroma_n} (12 bins)",
-            f"RMS harmonic (norm) points : {rms_harmonic_n}",
-            f"RMS harmonic stats (0..1) :             min = {rms_harmonic_stats['min']:.3f} p10 = {rms_harmonic_stats['p10']:.3f} p50 = {rms_harmonic_stats['p50']:.3f} p90 = {rms_harmonic_stats['p90']:.3f} max = {rms_harmonic_stats['max']:.3f} mean = {rms_harmonic_stats['mean']:.3f} std = {rms_harmonic_stats['std']:.3f}",
-            f"RMS percussive (norm) points : {rms_percussive_n}",
-            f"RMS percussive stats (0..1) :             min = { rms_percussive_stats['min']:.3f} p10 = {rms_percussive_stats['p10']:.3f} p50 = {rms_percussive_stats['p50']:.3f} p90 = {rms_percussive_stats['p90']:.3f} max = {rms_percussive_stats['max']:.3f} mean = {rms_percussive_stats['mean']:.3f} std = {rms_percussive_stats['std']:.3f}",
-            f"Beats points    : {beat_n}",
-            (
-                f"Estimated tempo : {self.tempo:.1f} BPM"
-                if self.tempo
-                else "Estimated tempo : _"
-            ),
-            f"Beat times stats (sec) :             min = {beat_stats['min']:.3f} p10 = {beat_stats['p10']:.3f} p50 = {beat_stats['p50']:.3f} p90 = {beat_stats['p90']:.3f} max = {beat_stats['max']:.3f} mean = {beat_stats['mean']:.3f} std = {beat_stats['std']:.3f}",
-            f"Onsets detectes    : {onset_n}" f"Onsets extraits    : {sample}",
-            f"Chroma stats (0..1)   :",
-            chroma_stats,
-        ]
-        return "\n".join(lines)
+        lines = "\n".join(
+            [
+                "=== AudioFeatures ===",
+                f"Samples         : {self.sample_num}",
+                f"Sample rate      : {self.sample_rate}",
+                f"Durée            : {duration} ({self.duration_sec:.3f} s)",
+                f"Frame hop        : {self.hop_length} samples, {hop_s:.4f} sec, {fps:.1f} fps",
+                f"Amplitude  min/mean/max : {self.min_amplitude:.4f} /  {self.mean_amplitude:.4f} / {self.max_amplitude:.4f}",
+                f"RMS (normalisee) points : {rms_n} ",
+                f"RMS stats (0..1)    :             min = {rms_stats['min']:.3f} p10 = {rms_stats['p10']:.3f} p50 = {rms_stats['p50']:.3f} p90 = {rms_stats['p90']:.3f} max = {rms_stats['max']:.3f} mean = {rms_stats['mean']:.3f} std = {rms_stats['std']:.3f} var = {rms_stats['var']:.3f}",
+                f"Centroid (norm) points : {centroid_n}",
+                f"Centroid stats (0..1) :             min = {centroid_stats['min']:.3f} p10 = {centroid_stats['p10']:.3f} p50 = {centroid_stats['p50']:.3f} p90 = {centroid_stats['p90']:.3f} max = {centroid_stats['max']:.3f} mean = {centroid_stats['mean']:.3f} std = {centroid_stats['std']:.3f} var = {centroid_stats['var']:.3f}",
+                f"Spectral flux (norm) points : {flux_n}",
+                f"Spectral flux stats (0..1) :             min = {flux_stats['min']:.3f} p10 = {flux_stats['p10']:.3f} p50 = {flux_stats['p50']:.3f} p90 = {flux_stats['p90']:.3f} max = {flux_stats['max']:.3f} mean = {flux_stats['mean']:.3f} std = {flux_stats['std']:.3f} var = {flux_stats['var']:.3f}",
+                f"Spectral bandwidth (norm) points : {bandwidth_n}",
+                f"Spectral bandwidth stats (0..1) :             min = {bandwidth_stats['min']:.3f} p10 = {bandwidth_stats['p10']:.3f} p50 = {bandwidth_stats['p50']:.3f} p90 = {bandwidth_stats['p90']:.3f} max = {bandwidth_stats['max']:.3f} mean = {bandwidth_stats['mean']:.3f} std = {bandwidth_stats['std']:.3f} var = {bandwidth_stats['var']:.3f}",
+                f"Spectral rolloff (norm) points : {rollof_n}",
+                f"Spectral rolloff stats (0..1) :             min = {rollof_stats['min']:.3f} p10 = {rollof_stats['p10']:.3f} p50 = {rollof_stats['p50']:.3f} p90 = {rollof_stats['p90']:.3f} max = {rollof_stats['max']:.3f} mean = {rollof_stats['mean']:.3f} std = {rollof_stats['std']:.3f} var = {rollof_stats['var']:.3f}",
+                f"RMS harmonic (norm) points : {rms_harmonic_n}",
+                f"RMS harmonic stats (0..1) :             min = {rms_harmonic_stats['min']:.3f} p10 = {rms_harmonic_stats['p10']:.3f} p50 = {rms_harmonic_stats['p50']:.3f} p90 = {rms_harmonic_stats['p90']:.3f} max = {rms_harmonic_stats['max']:.3f} mean = {rms_harmonic_stats['mean']:.3f} std = {rms_harmonic_stats['std']:.3f} var = {rms_harmonic_stats['var']:.3f}",
+                f"RMS percussive (norm) points : {rms_percussive_n}",
+                f"RMS percussive stats (0..1) :             min = { rms_percussive_stats['min']:.3f} p10 = {rms_percussive_stats['p10']:.3f} p50 = {rms_percussive_stats['p50']:.3f} p90 = {rms_percussive_stats['p90']:.3f} max = {rms_percussive_stats['max']:.3f} mean = {rms_percussive_stats['mean']:.3f} std = {rms_percussive_stats['std']:.3f} var = {rms_percussive_stats['var']:.3f}",
+                f"Beats points    : {beat_n}",
+                (
+                    f"Estimated tempo : {self.tempo:.1f} BPM"
+                    if self.tempo
+                    else "Estimated tempo : _"
+                ),
+                f"Onsets detectes    : {onset_n}" f"Onsets extraits    : {sample}",
+                f"Chroma points    : {chroma_n} (12 bins)",
+                f"Chroma stats (0..1)   :",
+                "    ",
+                ", ".join(
+                    f"bin_{i}: min=f{chroma_stats[f"chroma_band_{i}"]['min']:.3f} p10={chroma_stats[f'chroma_band_{i}']['p10']:.3f} p50={chroma_stats[f'chroma_band_{i}']['p50']:.3f} p90={chroma_stats[f'chroma_band_{i}']['p90']:.3f} max={chroma_stats[f'chroma_band_{i}']['max']:.3f} mean={chroma_stats[f'chroma_band_{i}']['mean']:.3f} std={chroma_stats[f'chroma_band_{i}']['std']:.3f} var={chroma_stats[f'chroma_band_{i}']['var']:.3f}"
+                    for i in range(chroma.shape[0] if chroma.ndim == 2 else 0)
+                ),
+                f"MFCC points     : {mfcc_n} (typically 13 bins)",
+                f"MFCC stats :",
+                "    ",
+                ", ".join(
+                    f"bin_{i}: min={mfcc_stats[f'mfcc_values_band_{i}']['min']:.3f} p10={mfcc_stats[f'mfcc_values_band_{i}']['p10']:.3f} p50={mfcc_stats[f'mfcc_values_band_{i}']['p50']:.3f} p90={mfcc_stats[f'mfcc_values_band_{i}']['p90']:.3f} max={mfcc_stats[f'mfcc_values_band_{i}']['max']:.3f} mean={mfcc_stats[f'mfcc_values_band_{i}']['mean']:.3f} std={mfcc_stats[f'mfcc_values_band_{i}']['std']:.3f} var={mfcc_stats[f'mfcc_values_band_{i}']['var']:.3f}"
+                    for i in range(
+                        mftcc_values.shape[0] if mftcc_values.ndim == 2 else 0
+                    )
+                ),
+            ]
+        )
+        return lines
+
+    def validate_sizes(self) -> bool:
+        """
+        Validate that all frame-based features have the same number of frames.
+        :return: True if all frame-based features have the same length, False otherwise.
+        """
+        expected_length = (
+            self.frames_times_sec.size if self.frames_times_sec is not None else 0
+        )
+
+        frame_based_features = {
+            "rms_values": self.rms_values,
+            "centroid_values": self.centroid_values,
+            "flux_values": self.flux_values,
+            "stft_magnitudes": self.stft_magnitudes,
+            "bandwidth_values": self.bandwidth_values,
+            "rollof_values": self.rollof_values,
+            "chroma": self.chroma,
+            "rms_harmonic_values": self.rms_harmonic_values,
+            "rms_percussive_values": self.rms_percussive_values,
+            "mfcc_values": self.mfcc_values,
+        }
+
+        for feature_name, feature in frame_based_features.items():
+            if feature is not None:
+                feature_length = feature.shape[1] if feature.ndim == 2 else feature.size
+                if feature_length != expected_length:
+                    log.error(
+                        f"Validation error: {feature_name} has length {feature_length}, expected {expected_length}"
+                    )
+                    return False
+
+        return True
 
 
 def _normalize_feature(feature: np.ndarray) -> np.ndarray:

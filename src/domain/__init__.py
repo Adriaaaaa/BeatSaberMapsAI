@@ -9,6 +9,7 @@ from .geometry import (
 )
 
 from .audio_features import AudioFeatures
+from .track_vector import TrackVector
 
 __all__ = [
     "Note",
@@ -22,4 +23,5 @@ __all__ = [
     "dir_to_vector_2d",
     "dir_to_vector_3d",
     "AudioFeatures",
+    "TrackVector",
 ]

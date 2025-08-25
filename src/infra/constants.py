@@ -1,0 +1,20 @@
+from enum import Enum
+
+AUDIO_LIB = "librosa"  # or "soundfile"
+
+AUDIO_DEFAULT_SAMPLE_RATE = 44_100
+AUDIO_DEFAULT_HOP = 512
+AUDIO_DEFAULT_NFFT = 2048
+
+TRACK_VECTOR_VERSION = 3
+AUDIO_FEATURES_VERSION = 5
+
+GRID_COLS = 4
+GRID_ROWS = 3
+
+LOGS_DIR = "logs"
+MAPS_DIR = "maps"
+CACHE_DIR = ".cache"
+
+KIND_TRACK_VECTOR = "track_vector"
+KIND_AUDIO_FEATURE = "audio_feature"

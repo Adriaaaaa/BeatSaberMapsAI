@@ -7,6 +7,7 @@ import numpy as np
 import json, time
 
 from infra.logger import LoggerManager
+from infra.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
@@ -16,7 +17,7 @@ class NpzCache:
     A simple cache system that stores data in a .npz file.
     """
 
-    def __init__(self, base_dir: str | Path = ".cache"):
+    def __init__(self, base_dir: str | Path = CACHE_DIR):
         # Initialize the cache directory and file
         # base_dir can either be a string or a Path object
         self.base_dir = Path(base_dir)
