@@ -2,32 +2,9 @@ import math
 from typing import Optional, Tuple
 
 from infra.logger import LoggerManager
+from infra.constants import *
 
 log = LoggerManager.get_logger(__name__)
-
-DIRECTION_TO_VECTOR = {
-    0: (0, 1),  # Up
-    1: (0, -1),  # Bas
-    2: (-1, 0),  # Left
-    3: (1, 0),  # Right
-    4: (-1, 1),  # Left Up
-    5: (1, 1),  # Right Up
-    6: (-1, -1),  # Left Down
-    7: (1, -1),  # Right Down
-    8: (0, 0),  # Free
-}
-
-
-DIRECTION_TO_ANGLE = {
-    0: 90,  # Up
-    1: 270,  # Down
-    2: 180,  # Left
-    3: 0,  # Right
-    4: 135,  # UpLeft
-    5: 45,  # UpRight
-    6: 225,  # DownLeft
-    7: 315,  # DownRight
-}
 
 
 def dir_to_vector_2d(code: int) -> Optional[Tuple[float, float]]:

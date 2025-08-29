@@ -4,9 +4,8 @@ import numpy as np
 from dataclasses import dataclass, asdict
 from domain.audio_features import AudioFeatures
 
-STATS_order = ["mean", "std", "min", "p10", "p50", "p90", "max"]
-
 from infra.logger import LoggerManager
+from infra.constants import *
 
 log = LoggerManager.get_logger(__name__)
 

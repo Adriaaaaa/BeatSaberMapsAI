@@ -17,6 +17,8 @@ from analysis.audio.align_utils import align_audio_features
 from domain import TrackVector
 from infra.constants import *
 
+from analysis.audio.cluster_model import ClusterModel
+
 # Configure the logger
 log = LoggerManager.get_logger(__name__)
 
@@ -47,6 +49,8 @@ def main():
         print("4.Print all audio features\n")
         print("5.Convert first song in audio feature then vector\n")
         print("6.Convert all songs to audiofeatures and then to vector\n")
+        print("7.Train Clustering Model on all songs\n")
+        print("8.Predict cluster of new song with model saved\n")
         print("q.Quit\n")
         choice = input("Enter your choice: ")
 
@@ -252,6 +256,29 @@ def main():
                             log.info(
                                 f"Audio for map {map_folder} converted to vector successfully and cached.\n"
                             )
+        elif choice.lower() == "7":
+            log.info("Training clustering model on all songs...\n")
+            cluster_model = ClusterModel()
+            cluster_model.train(
+                [
+                    os.path.join(MAPS_DIR, f)
+                    for f in os.listdir(MAPS_DIR)
+                    if os.path.isdir(os.path.join(MAPS_DIR, f))
+                ]
+            )
+        elif choice.lower() == "8":
+            log.info("Predicting cluster for new song...\n")
+            cluster_model = ClusterModel()
+            track_folder = input("Enter the path to the track folder: ")
+            result = cluster_model.predict(track_folder)
+            if result:
+                kept_folders, labels = result
+                log.info(
+                    f"Prediction successful. Kept folders: {kept_folders}, Labels: {labels}"
+                )
+            else:
+                log.warning("Prediction failed.")
+
         elif choice.lower() == "q":
             print("Quitting the program.\n")
             sys.exit(0)
