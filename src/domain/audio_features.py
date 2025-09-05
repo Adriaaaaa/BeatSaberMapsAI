@@ -1,13 +1,15 @@
 from __future__ import annotations
 import numpy as np
+import scipy.stats as stats
+
 from typing import Dict, Any, Tuple, Optional, Sequence
 
 import librosa
 
 from dataclasses import dataclass, asdict
 
-from infra.logger import LoggerManager
-from infra.constants import *
+from utils.logger import LoggerManager
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
@@ -453,6 +455,8 @@ class AudioFeatures:
                 "p50": 0,
                 "p90": 0,
                 "var": 0,
+                "skew": 0,
+                "kurt": 0,
             }
 
         feature = np.asarray(feature)
@@ -465,6 +469,8 @@ class AudioFeatures:
             "p50": float(np.percentile(feature, 50)),
             "p90": float(np.percentile(feature, 90)),
             "var": float(np.var(feature, ddof=0)),
+            "skew": float(stats.skew(feature)),
+            "kurt": float(stats.kurtosis(feature)),
         }
 
     def feature_stats_2d(
@@ -474,6 +480,10 @@ class AudioFeatures:
             "mean",
             "std",
             "var",
+            "min",
+            "skew",
+            "kurt",
+            "max",
         ),
         quantiles: Sequence[int] = (10, 50, 90),
     ) -> Dict[str, np.ndarray]:
@@ -500,6 +510,10 @@ class AudioFeatures:
                 band_stats["std"] = float(np.std(band, ddof=0))
             if "var" in stats_to_compute:
                 band_stats["var"] = float(np.var(band, ddof=0))
+            if "skew" in stats_to_compute:
+                band_stats["skew"] = float(stats.skew(band))
+            if "kurt" in stats_to_compute:
+                band_stats["kurt"] = float(stats.kurtosis(band))
             for q in quantiles:
                 band_stats[f"p{q}"] = float(np.percentile(band, q))
             summary[f"{feature_to_summarize}_band_{i}"] = band_stats
@@ -547,12 +561,12 @@ class AudioFeatures:
         rms_percussive_stats = self.feature_stats_1d("rms_percussive_values")
         chroma_stats = self.feature_stats_2d(
             "chroma",
-            stats_to_compute=("min", "max", "mean", "std", "var"),
+            stats_to_compute=("min", "max", "mean", "std", "var", "skew", "kurt"),
             quantiles=(10, 50, 90),
         )
         mfcc_stats = self.feature_stats_2d(
             "mfcc_values",
-            stats_to_compute=("min", "max", "mean", "std", "var"),
+            stats_to_compute=("min", "max", "mean", "std", "var", "skew", "kurt"),
             quantiles=(10, 50, 90),
         )
 

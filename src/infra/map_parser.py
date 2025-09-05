@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 
 from dataclasses import dataclass
 
-from infra.logger import LoggerManager
+from utils.logger import LoggerManager
 
 log = LoggerManager.get_logger(__name__)
 

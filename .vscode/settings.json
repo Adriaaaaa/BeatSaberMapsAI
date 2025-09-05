@@ -5,4 +5,9 @@
     "editor.formatOnSave": true,
     "debug.openDebug": "neverOpen",
     "debug.console.focusOnReveal": false,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
 }

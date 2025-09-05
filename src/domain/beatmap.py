@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 
-from infra.logger import LoggerManager
-from infra.constants import *
+from utils.logger import LoggerManager
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 

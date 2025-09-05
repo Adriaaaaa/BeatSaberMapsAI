@@ -6,7 +6,7 @@ AUDIO_DEFAULT_SAMPLE_RATE = 44_100
 AUDIO_DEFAULT_HOP = 512
 AUDIO_DEFAULT_NFFT = 2048
 
-TRACK_VECTOR_VERSION = 3
+TRACK_VECTOR_VERSION = 6
 AUDIO_FEATURES_VERSION = 5
 
 GRID_COLS = 4
@@ -16,7 +16,7 @@ LOGS_DIR = "logs"
 MAPS_DIR = "maps"
 CACHE_DIR = ".cache"
 
-KIND_TRACK_VECTOR = "track_vector_sr"
+KIND_TRACK_VECTOR = "track_vector"
 KIND_AUDIO_FEATURE = "audio_feature"
 
 
@@ -44,9 +44,29 @@ DIRECTION_TO_ANGLE = {
     7: 315,  # DownRight
 }
 
-
-STATS_order = ["mean", "std", "min", "p10", "p50", "p90", "max"]
-
 NUM_CLUSTERS = 6
 
-VERSION_MODEL_CLUSTERING = 1
+VERSION_MODEL_CLUSTERING = 3
+
+
+STATS_ORDER = [
+    "mean",
+    "std",
+    # "p10",
+    # "p50",
+    # "p90",
+    # "skew",
+    # "kurt"
+]
+
+ONED_FEATURES = [
+    # "rms_values",
+    # "centroid_values",
+    # "flux_values",
+    # "bandwidth_values",
+    # "rollof_values",
+    # "rms_harmonic_values",
+    # "rms_percussive_values",
+]
+
+TWOD_FEATURES = ["chroma", "mfcc_values"]

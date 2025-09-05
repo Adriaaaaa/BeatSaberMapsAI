@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Tuple
 import numpy as np
 
-from infra.logger import LoggerManager
+from utils.logger import LoggerManager
 from domain import AudioFeatures
 
 log = LoggerManager.get_logger(__name__)

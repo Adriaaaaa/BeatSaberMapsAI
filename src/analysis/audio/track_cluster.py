@@ -12,8 +12,8 @@ import csv
 from domain import TrackVector
 
 from infra.cache import NpzCache
-from infra.logger import LoggerManager
-from infra.constants import *
+from utils.logger import LoggerManager
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
@@ -43,16 +43,18 @@ class TrackCluster:
 
     cache: NpzCache
 
-    def __init__(self) -> None:
+    nb_clusters: int = NUM_CLUSTERS
+
+    def __init__(self, nb_clusters: int = NUM_CLUSTERS) -> None:
         self.cache = NpzCache(base_dir=".cache")
 
         # The KMeans clustering algorithm
         # initialization the KMeans object
         # with the number of clusters and other parameters
-        self.kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42, n_init="auto")
+        self.kmeans = KMeans(n_clusters=nb_clusters, random_state=42, n_init="auto")
 
     def build_track_matrix(
-        self, track_folders: Iterable[str]
+        self, track_folders: Iterable[str], unique_id: str
     ) -> Tuple[np.ndarray, List[str]]:
         """
         Build a matrix from a list of TrackVector objects.
@@ -70,7 +72,9 @@ class TrackCluster:
         )  # return track ids that were kept (because in cache)
 
         for folder in track_folders:
-            cached = self.cache.load(folder, KIND_TRACK_VECTOR, TRACK_VECTOR_VERSION)
+            cached = self.cache.load(
+                folder, KIND_TRACK_VECTOR, unique_id, TRACK_VECTOR_VERSION
+            )
             if cached is None:
                 log.warning(f"TrackVector is not cached for {folder}")
             else:
@@ -78,9 +82,10 @@ class TrackCluster:
                 # If cached, we can directly create the AudioFeatures instance from the cached data
                 vector = TrackVector.from_dict(cached)
                 vector.validate()
-                if self.feature_names == []:
+                if self.feature_names == [] and vector.names:
                     self.feature_names = vector.names
-                rows.append(vector.values.astype(np.float32))
+                if vector.values is not None:
+                    rows.append(vector.values.astype(np.float32))
                 kept_folders.append(folder)
 
         if not rows:

@@ -1,5 +1,5 @@
-from .beatmap import Note, Obstacle, Bomb, BSMap
-from .geometry import (
+from domain.beatmap import Note, Obstacle, Bomb, BSMap
+from domain.geometry import (
     angle_between_rad,
     dir_to_angle_rad,
     dir_to_angle_deg,
@@ -8,8 +8,10 @@ from .geometry import (
     dir_to_vector_3d,
 )
 
-from .audio_features import AudioFeatures
-from .track_vector import TrackVector
+from domain.audio_features import AudioFeatures
+from domain.track_vector import TrackVector
+from domain.vector_metadata import VectorMetadata
+
 
 __all__ = [
     "Note",
@@ -24,4 +26,5 @@ __all__ = [
     "dir_to_vector_3d",
     "AudioFeatures",
     "TrackVector",
+    "VectorMetadata",
 ]

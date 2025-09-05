@@ -417,9 +417,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-#ignore map file
-maps/
-
 *.pyproj
 *.sln
 
@@ -429,3 +426,6 @@ __pycache__/
 
 logs/
 .vscode/
+
+/maps
+/models

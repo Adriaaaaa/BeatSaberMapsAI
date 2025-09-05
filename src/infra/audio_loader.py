@@ -11,8 +11,8 @@ import soundfile as sf
 import os
 
 from infra.cache import NpzCache
-from infra.logger import LoggerManager
-from infra.constants import *
+from utils.logger import LoggerManager
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 

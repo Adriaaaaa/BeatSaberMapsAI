@@ -6,8 +6,8 @@ from typing import Any, Dict
 import numpy as np
 import json, time
 
-from infra.logger import LoggerManager
-from infra.constants import *
+from utils.logger import LoggerManager
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
@@ -27,7 +27,12 @@ class NpzCache:
         self.base_dir.mkdir(exist_ok=True)
 
     def save(
-        self, source_path: str | Path, data: Dict[str, Any], kind: str, version: float
+        self,
+        source_path: str | Path,
+        data: Dict[str, Any],
+        kind: str,
+        id: str | None,
+        version: float,
     ):
         """
         Save data to a .npz file.
@@ -37,7 +42,23 @@ class NpzCache:
         :param version: Version of the data being saved.
         """
         src = Path(source_path)
-        composite_path = self.base_dir / f"{src.stem}_{kind}_v{version}.npz"
+
+        if id is None:
+            composite_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_v{version}.npz"
+            )
+        else:
+            composite_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_{id}_v{version}.npz"
+            )
+
+        # Ensure the directory exists
+        composite_path.parent.mkdir(exist_ok=True)
+
         fingerprint = _fingerprint(src)
         # Create metadata for the cache
         metadata = {
@@ -69,10 +90,42 @@ class NpzCache:
         # np.savez allows saving multiple arrays in a single file
         # allow_pickle=False is used to prevent saving objects that could lead to security issues
         np.savez_compressed(str(composite_path), **dict_to_save, allow_pickle=False)
-        print(f"Data saved to {composite_path}")
+        log.info(f"Data saved to {composite_path}")
         return composite_path
 
-    def load(self, source_path: str | Path, kind: str, version: float):
+    def save_json(
+        self,
+        source_path: str | Path,
+        data: Dict[str, Any],
+        kind: str,
+        id: str | None,
+        version: float,
+    ):
+
+        src = Path(source_path)
+        if id is None:
+            composite_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_v{version}.json"
+            )
+        else:
+            composite_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_{id}_v{version}.json"
+            )
+
+        # Ensure the directory exists
+        composite_path.parent.mkdir(exist_ok=True)
+
+        # Save the data as a JSON file
+        with open(composite_path, "w") as f:
+            json.dump(data, f)
+        log.info(f"Data saved to {composite_path}")
+        return composite_path
+
+    def load(self, source_path: str | Path, kind: str, id: str | None, version: float):
         """
         Load data from a .npz file.
         :param source_path: Path to the source file from which features were extracted.
@@ -81,7 +134,18 @@ class NpzCache:
         :return: Dictionary containing the loaded data.
         """
         src = Path(source_path)
-        file_path = self.base_dir / f"{src.stem}_{kind}_v{version}.npz"
+        if id is None:
+            file_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_v{version}.npz"
+            )
+        else:
+            file_path = (
+                self.base_dir
+                / f"{kind}_v{version}"
+                / f"{src.stem}_{kind}_{id}_v{version}.npz"
+            )
         if not file_path.exists():
             # meaning this file is not cached
             log.info(f"Cache file {file_path} does not exist.")

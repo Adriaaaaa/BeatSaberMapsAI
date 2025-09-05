@@ -1,5 +1,5 @@
-[tool.pytest.init_options]
-addopts = "-q --maxfail=1"
+[tool.pytest.ini_options]
+addopts = "-q"
 pythonpath = ["src"]
 
 [project]
@@ -8,5 +8,6 @@ version = "0.1.0"
 dependencies = [
     "librosa>=0.10",
     "soundfile>=0.12",
-    "numpy>=1.26"
+    "numpy>=1.26",
+    "pytest>=7.4",
 ]

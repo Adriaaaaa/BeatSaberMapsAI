@@ -1,21 +1,22 @@
 import os
 import sys
 
+from domain.vector_metadata import VectorMetadata
+
 from infra.map_parser import BSMapParser
 from analysis.maps.profiler import BSMapProfiler
 
 from infra.audio_loader import AudioLoader
 from analysis.audio.profiler import AudioProfiler
 
-from generation import generator
-from typing import Dict, Any, List
 
-from infra.logger import LoggerManager
-from domain import AudioFeatures
+from typing import List
+
+from utils.logger import LoggerManager
 
 from analysis.audio.align_utils import align_audio_features
-from domain import TrackVector
-from infra.constants import *
+
+from utils.constants import *
 
 from analysis.audio.cluster_model import ClusterModel
 
@@ -50,7 +51,7 @@ def main():
         print("5.Convert first song in audio feature then vector\n")
         print("6.Convert all songs to audiofeatures and then to vector\n")
         print("7.Train Clustering Model on all songs\n")
-        print("8.Predict cluster of new song with model saved\n")
+        print("8.Train Clustering Model on all combinations of features and stats\n")
         print("q.Quit\n")
         choice = input("Enter your choice: ")
 
@@ -204,13 +205,11 @@ def main():
                         audio_data, map_folder=map_path
                     )
                     if features:
-                        log.info(features.summary_str())
                         log.info(
                             f"Audio for map {map_folder} analyzed successfully and cached.\n"
                         )
                         align_audio_features(features)
                         log.info("Audio features aligned.\n")
-                        log.info(features.summary_str())
                         vector = audio_profiler.convert_features_to_vector(
                             track_id=map_folder, features=features, map_folder=map_path
                         )
@@ -218,8 +217,6 @@ def main():
                             log.info(
                                 f"Audio for map {map_folder} converted to vector successfully and cached.\n"
                             )
-                            log.info(vector.summarize())
-                break
         elif choice == "6":
             log.info("Convert all songs to audiofeatures and then to vector\n")
             audio_loader = AudioLoader(sample_rate=AUDIO_DEFAULT_SAMPLE_RATE, mono=True)
@@ -249,35 +246,138 @@ def main():
                         )
                         align_audio_features(features)
                         log.info("Audio features aligned.\n")
-                        vector = audio_profiler.convert_features_to_vector(
-                            track_id=map_folder, features=features, map_folder=map_path
+                        log.info(
+                            "Now computing vectors for combinations of features and stats.\n"
                         )
-                        if vector:
-                            log.info(
-                                f"Audio for map {map_folder} converted to vector successfully and cached.\n"
+                        combinations = []
+                        oned = ONED_FEATURES.copy()
+                        twod = TWOD_FEATURES.copy()
+                        stat = STATS_ORDER.copy()
+
+                        combinations.append((oned.copy(), twod.copy(), stat))
+
+                        while oned:
+                            twodtopop = twod.copy()
+                            while twodtopop:
+                                other_2dfeature = twodtopop.pop(0)
+
+                                combinations.append(
+                                    (oned.copy(), twodtopop.copy(), STATS_ORDER)
+                                )
+                                combinations.append(
+                                    (oned.copy(), [other_2dfeature], STATS_ORDER)
+                                )
+                            oned.pop(0)
+
+                        n_combinations = len(combinations)
+                        log.info(
+                            f"Computing {n_combinations} combinations for map {map_folder}"
+                        )
+
+                        for oned, twod, stat in combinations:
+                            vector = audio_profiler.convert_features_to_vector(
+                                track_id=map_folder,
+                                features=features,
+                                map_folder=map_path,
+                                oned_features_to_keep=oned,
+                                twod_features_to_keep=twod,
+                                stats_to_keep=stat,
                             )
+                            if vector:
+                                log.info(
+                                    f"Audio for map {map_folder} converted to vector successfully and cached.\n"
+                                )
+
         elif choice.lower() == "7":
             log.info("Training clustering model on all songs...\n")
-            cluster_model = ClusterModel()
-            cluster_model.train(
-                [
-                    os.path.join(MAPS_DIR, f)
-                    for f in os.listdir(MAPS_DIR)
-                    if os.path.isdir(os.path.join(MAPS_DIR, f))
-                ]
-            )
-        elif choice.lower() == "8":
-            log.info("Predicting cluster for new song...\n")
-            cluster_model = ClusterModel()
-            track_folder = input("Enter the path to the track folder: ")
-            result = cluster_model.predict(track_folder)
-            if result:
-                kept_folders, labels = result
+            # Try different number of clusters from 2 to 20 and print silhouette score
+            scorebycluster = {}
+            features_included = {
+                "1d": ONED_FEATURES.copy(),
+                "2d": TWOD_FEATURES.copy(),
+                "stats": STATS_ORDER.copy(),
+            }
+            combination_id = VectorMetadata.build_id(features_included)
+
+            log.info(f"Combination ID: {combination_id}")
+            log.info(f"Features included: {features_included}")
+
+            score_by_cluster = []
+            track_folders = os.listdir(MAPS_DIR)
+            track_folders = [os.path.join(MAPS_DIR, folder) for folder in track_folders]
+
+            for i in range(2, 10):
+                cluster_model = ClusterModel(nb_clusters=i)
+                score = cluster_model.train(track_folders, combination_id)
+                score_by_cluster.append({"score": score, "num_clusters": i})
+
+            for item in score_by_cluster:
                 log.info(
-                    f"Prediction successful. Kept folders: {kept_folders}, Labels: {labels}"
+                    f"Number of clusters: {item['num_clusters']}, Silhouette score: {item['score']}"
                 )
-            else:
-                log.warning("Prediction failed.")
+
+        elif choice.lower() == "8":
+            # Now that we have a bunch of track vector for each combination, let's try different clustering from them
+            # First let's recompute combinations
+            combinations = []
+            oned = ONED_FEATURES.copy()
+            twod = TWOD_FEATURES.copy()
+            stat = STATS_ORDER.copy()
+
+            combinations.append((oned.copy(), twod.copy(), stat))
+            silhouette_by_combination = []
+
+            while oned:
+                twodtopop = twod.copy()
+                while twodtopop:
+                    other_2dfeature = twodtopop.pop(0)
+
+                    combinations.append((oned.copy(), twodtopop.copy(), STATS_ORDER))
+                    combinations.append((oned.copy(), [other_2dfeature], STATS_ORDER))
+                oned.pop(0)
+
+            n_combinations = len(combinations)
+
+            # now let's parse maps
+
+            for oned, twod, stat in combinations:
+                log.info(f"Processing combination: {oned}, {twod}, {stat}")
+                features_included = {
+                    "1d": oned,
+                    "2d": twod,
+                    "stats": stat,
+                }
+                combination_id = VectorMetadata.build_id(features_included)
+                # For each combination, we need to find the list of corresponding track vectors to build a matrix from
+
+                track_folders = os.listdir(MAPS_DIR)
+                # need to add MAPS_DIR at the begginiing of each folder
+                track_folders = [
+                    os.path.join(MAPS_DIR, folder) for folder in track_folders
+                ]
+
+                cluster_model = ClusterModel(nb_clusters=NUM_CLUSTERS)
+                score = cluster_model.train(track_folders, combination_id)
+                if score is None:
+                    log.warning(
+                        f"Training failed for combination: {oned}, {twod}, {stat}"
+                    )
+                    continue
+
+                log.info(
+                    f"Training completed successfully for combination: {oned}, {twod}, {stat}. Silhouette score: {score}"
+                )
+                silhouette_by_combination.append(
+                    {
+                        "score": score,
+                        "features_included": features_included,
+                    }
+                )
+            # print all scores
+            for item in silhouette_by_combination:
+                log.info(
+                    f"Combination: {item['features_included']}, Silhouette score: {item['score']}"
+                )
 
         elif choice.lower() == "q":
             print("Quitting the program.\n")

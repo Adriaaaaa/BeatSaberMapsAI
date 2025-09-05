@@ -1,3 +1,4 @@
+import uuid
 import numpy as np
 import joblib
 
@@ -5,26 +6,33 @@ from typing import Iterable
 
 from .track_cluster import TrackCluster
 from infra.cache import NpzCache
-from infra.logger import LoggerManager
+from utils.logger import LoggerManager
 
-from infra.constants import *
+from utils.constants import *
 
 log = LoggerManager.get_logger(__name__)
 
 
 class ClusterModel:
 
-    def __init__(self):
+    def __init__(self, nb_clusters: int = NUM_CLUSTERS):
         self.cache = NpzCache(base_dir=".cache")
-        self.clusterer = TrackCluster()
+        self.clusterer = TrackCluster(nb_clusters=nb_clusters)
 
-    def train(self, track_folders: Iterable[str]) -> None:
+    def train(
+        self, track_folders: Iterable[str], combination_id: str | None
+    ) -> float | None:
         """
         Train the clustering model on the track vectors.
         :param track_folders: Iterable of track folders to process.
         :return: Silhouette score or None if fitting fails.
         """
-        matrix, kept_folders = self.clusterer.build_track_matrix(track_folders)
+        if combination_id is None:
+            return None
+
+        matrix, kept_folders = self.clusterer.build_track_matrix(
+            track_folders, combination_id
+        )
 
         if not matrix.size or not kept_folders:
             log.warning("No valid tracks found.")
@@ -60,7 +68,11 @@ class ClusterModel:
             f"models/track_cluster_model_v{VERSION_MODEL_CLUSTERING}"
         )
 
-    def predict(self, track_folder: str) -> tuple[list[str], np.ndarray] | None:
+        return silhouette_score
+
+    def predict(
+        self, track_folder: str, combination_id: str | None
+    ) -> tuple[list[str], np.ndarray] | None:
         """
         Predict the cluster for a given track folder.
         :param track_folder: Path to the track folder.
@@ -71,7 +83,13 @@ class ClusterModel:
             log.warning("No track folder provided.")
             return None
 
-        matrix, kept_folders = self.clusterer.build_track_matrix([track_folder])
+        if combination_id is None:
+            log.warning("No combination ID provided.")
+            return None
+
+        matrix, kept_folders = self.clusterer.build_track_matrix(
+            [track_folder], combination_id
+        )
 
         self.clusterer.load_model(
             f"models/track_cluster_model_v{VERSION_MODEL_CLUSTERING}"
